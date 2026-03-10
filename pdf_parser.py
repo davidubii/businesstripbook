@@ -54,13 +54,13 @@ def _buscar_comercio(texto: str) -> str | None:
     del negocio (razón social o nombre comercial en el encabezado),
     entonces si el PDF tiene el campo 'razón social:' o 'proveedor:', lo buscamos primero.
     """
-    # Intento 1: buscar campo explícito
+    # intento 1: buscar campo explícito
     patron_explicito = r'(?:Razón social|Proveedor|Empresa|Emisor)\s*[:\-]?\s*(.+)'
     resultado = re.search(patron_explicito, texto, re.IGNORECASE)
     if resultado:
         return resultado.group(1).strip()
 
-    # Intento 2: primera línea no vacía del texto
+    # intento 2: primera línea no vacía del texto
     for linea in texto.splitlines():
         linea = linea.strip()
         if linea:

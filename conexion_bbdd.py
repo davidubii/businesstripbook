@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime
 import os
 
-# esto calcula la ruta absoluta sin importar dónde esté ejecutándose el programa
+# esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "facturas.db")
 
@@ -26,6 +26,8 @@ def inicializar_bd():
 
 
 def guardar_factura(datos: dict, ruta_pdf: str):
+    # los ???? son parametrizacion, para evtar ataques de inyeccion SQL. 
+    # aunque no haya riesgo real mola decirlo y tal
     """
     inserta una factura en la base de datos.
     'datos' es el return que devuelve extraer_datos_factura()
@@ -33,16 +35,16 @@ def guardar_factura(datos: dict, ruta_pdf: str):
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
-    cursor.execute("""
+    cursor.execute("""   
         INSERT INTO facturas (comercio, fecha, total, iva, ruta_pdf, fecha_carga)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?) 
     """, (
         datos.get("comercio"),
         datos.get("fecha"),
         datos.get("total"),
-        datos.get("iva"),
+        datos.get("iva"), # datos, es el return que da pdf_parser
         ruta_pdf,
-        datetime.now().strftime("%d/%m/%Y %H:%M") #formato de la fecha y hora en la que se ha metido el registro
+        datetime.now().strftime("%d/%m/%Y %H:%M") # formato de la fecha y hora en la que se ha metido el registro
     ))
     conexion.commit()
     conexion.close()
@@ -51,7 +53,7 @@ def guardar_factura(datos: dict, ruta_pdf: str):
 def listar_facturas() -> list:
     """
     devuelverá todas las facturas guardadas como lista en un diccionarios.
-    usar el diccionario en lugar de tuplas hace el código más legible para mi.
+    usar el diccionario hace el código más legible para mi.
     """
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row  # permite acceder por nombre de columna
