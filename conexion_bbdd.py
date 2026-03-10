@@ -1,14 +1,13 @@
 import sqlite3
 from datetime import datetime
+import os
 
-DB_PATH = "bbdd/facturas.db"  # ruta del fichero de la base de datos
-
+# esto calcula la ruta absoluta sin importar dónde esté ejecutándose el programa
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "facturas.db")
 
 def inicializar_bd():
-    """
-    crea la tabla 'facturas' si no existe todavía.
-    llama una vez al arrancar el programa.
-    """
+    os.makedirs(BASE_DIR, exist_ok=True)  # asegura que el directorio existe
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
     cursor.execute("""
