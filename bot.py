@@ -23,6 +23,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): #async perm
         "¡Solo tienes que enviarme el archivo!"
     )
 
+async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📖 *Comandos disponibles:*\n\n"
+        "📎 /start → Mensaje de bienvenida\n"
+        "📋 /listar → Ver tus últimas facturas\n"
+        "💶 /total → Suma total de todas tus facturas\n"
+        "🔍 /buscar [nombre] → Buscar por comercio\n"
+        "🗑️ /borrar [id] → Eliminar una factura\n"
+        "❓ /ayuda → Ver esta ayuda\n\n"
+        "📄 También puedes enviarme directamente un PDF para procesarlo.",
+        parse_mode="Markdown"
+    )
+
+
 async def recibir_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     documento = update.message.document
 
@@ -68,6 +82,7 @@ def main():
 
     # registrar manejadores (handlers)
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("ayuda", ayuda))
     app.add_handler(MessageHandler(filters.Document.ALL, recibir_pdf))
 
     print("🤖 Bot arrancado. Esperando mensajes...")
