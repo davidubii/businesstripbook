@@ -226,5 +226,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()  # ejecuta main() solo si se ejecuta directamente este fichero
-            # pruebas
+    main()  
+    # ejecuta main() solo si se ejecuta directamente este fichero
+    # pruebas

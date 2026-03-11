@@ -3,36 +3,35 @@ from datetime import datetime
 import os
 import csv
 
-
+# SQLite usa /* */ o -- para comentarios SQL, no """ <-- RECORDAR IMPORTANTE
 # esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
 # __file__ es la ruta del archivo actual, dirname saca la carpeta y abspath la hace absoluta
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta donde está este archivo Python
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta donde está este archivo python
 DB_PATH = os.path.join(BASE_DIR, "facturas.db")  # ruta completa al fichero de la base de datos
 
 
 def inicializar_bd():
-    # crea la carpeta si no existe (exist_ok=True evita errores si ya existe)
-    os.makedirs(BASE_DIR, exist_ok=True)  
+    os.makedirs(BASE_DIR, exist_ok=True)
     
-    # abre la base de datos (si no existe, la crea)
     conexion = sqlite3.connect(DB_PATH)
-    cursor = conexion.cursor()  # cursor = herramienta para ejecutar comandos SQL
-    
+    cursor = conexion.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS facturas (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,  # ID único que se genera automáticamente
-            comercio    TEXT,   # nombre del comercio/establecimiento
-            fecha       TEXT,   # fecha de la factura (formato dd/mm/aaaa)
-            total       TEXT,   # importe total (texto porque puede tener comas/puntos)
-            iva         TEXT,   # IVA (ej: "21%")
-            ruta_pdf    TEXT,   # ruta del fichero PDF original
-            fecha_carga TEXT    # cuándo se procesó la factura (dd/mm/aaaa HH:MM)
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            comercio    TEXT,
+            fecha       TEXT,
+            total       TEXT,
+            iva         TEXT,
+            ruta_pdf    TEXT,
+            fecha_carga TEXT
         ) 
-    """)
+    """) 
     
-    conexion.commit()  # confirma y guarda los cambios
-    conexion.close()   # cierra la conexión 
-
+    # aquí se establecen las columnas de la base de datos, y que tipo de dato reciben
+    # ("TEXT = string", el id se pone un número que va incrementando automáticamente segun se van ingresando los datos)
+    
+    conexion.commit()
+    conexion.close()
 
 def guardar_factura(datos: dict, ruta_pdf: str):
     """
