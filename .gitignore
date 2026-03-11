@@ -3,3 +3,4 @@ facturas en pdf/
 __pycache__/
 *.pyc
 *.db
+main.py

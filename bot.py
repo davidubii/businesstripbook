@@ -1,9 +1,9 @@
 
 # -> !! RECORDAR: handler es "cuando pase esto, haz esto" y hay que añadirlos al crearlos al final si no caca
 # el bot esta preguntando siempre en telegram: ¿me estan escribiendo? esto = "polling"
-# 10/03/26 -> agregar manejo de fallos del bot, ortografia, añadir la funcion de ayuda 
-# e investigar Railway, tambien mirar sobre como rechazar fotos o archivos que no toquen
-# arreglar error de ubicacion del .db
+# 11/03/26 -> investigar sobre si es posible generar un archivo (.csv, a ser posible) 
+# con las facturas que esten en la base de datos , añadir un filtro de fechas (/entre 01/01/2025 31/01/2025)
+# que muestre (o sume) en ese perieodo
 
 from dotenv import load_dotenv
 import os
@@ -11,19 +11,22 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from pdf_parser import extraer_datos_factura
-from conexion_bbdd import inicializar_bd, guardar_factura, buscar_por_comercio, obtener_ultimas_facturas, obtener_total_facturas
+from conexion_bbdd import inicializar_bd, guardar_factura, borrar_factura, buscar_por_comercio, obtener_ultimas_facturas, obtener_total_facturas
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
+
+###### COMANDO BIENVENIDA ######
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): #async permite que varios usuarios puedan usar el bot a la vez
     await update.message.reply_text( # -> si alguien en tu chat escribe "/start, di esto"
         "👋 ¡Hola! Soy BusinessTripBook.\n\n"
         "Envíame una factura en PDF y extraeré automáticamente:\n"
         "📅 Fecha\n💶 Total\n🏪 Comercio\n📊 IVA\n\n"
-        "¡Solo tienes que enviarme el archivo!"
+        "¡Solo tienes que enviarme el archivo!\n"
+        "Si no sabes como hablar conmigo, escribe /ayuda"
     )
 
 ################ COMANDOS UTILES ######################
@@ -77,11 +80,32 @@ async def buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lineas = [f"🔍 *Resultados para* `{texto_busqueda}`:", ""]
     for f in resultados[:10]:
-        linea = f"• [{f['id']}] {f['fecha'] or 'Sin fecha'} – {f['comercio'] or 'Sin comercio'} – {f['total'] or '?'} €"
+        linea = f"• [{f['id']}]: {f['fecha'] or 'Sin fecha'} – {f['comercio'] or 'Sin comercio'} – {f['total'] or '?'} €"
         lineas.append(linea)
 
     await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
 
+
+async def borrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("🗑️ Uso: /borrar id\nEjemplo: /borrar 3")
+        return
+
+    try:
+        id_factura = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("⚠️ El id debe ser un número. Ejemplo: /borrar 3")
+        return
+
+    if borrar_factura(id_factura):
+        await update.message.reply_text(f"✅ Factura con id {id_factura} borrada correctamente.")
+    else:
+        await update.message.reply_text(f"❌ No se ha encontrado ninguna factura con id {id_factura}.")
+
+
+############# COSAS QUE EL USUARIO PUEDE HACER Y HAY QUE EVITAR ###########################
+
+# si el usuario enviase una foto al chat:
 
 async def rechazar_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -92,13 +116,16 @@ async def rechazar_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# si el usuario escribe cualquier cosa que no sea un comando conocido
+
 async def mensaje_desconocido(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "❓ No entiendo ese mensaje.\n" # -> di esto si te dicen algo escrito en el chat
         "Usa /ayuda para ver los comandos disponibles."
     )
 
-    # cuando se reciba un archivo:
+
+# cuando se reciba un archivo:
 async def recibir_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     documento = update.message.document
 
@@ -144,15 +171,17 @@ def main():
     app = Application.builder().token(TOKEN).build() # -> llama a los handlers "en nombre" del token del bot
 
     # registrar manejadores (handlers)
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ayuda", ayuda))
     app.add_handler(CommandHandler("listar", listar))
     app.add_handler(CommandHandler("total", total))
     app.add_handler(CommandHandler("buscar", buscar))
+    app.add_handler(CommandHandler("borrar", borrar))
 
     app.add_handler(MessageHandler(filters.Document.ALL, recibir_pdf))
     app.add_handler(MessageHandler(filters.PHOTO, rechazar_foto))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_desconocido))  # siempre el último
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_desconocido))
 
 
 

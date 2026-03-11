@@ -27,7 +27,7 @@ def inicializar_bd():
 
 def guardar_factura(datos: dict, ruta_pdf: str):
     # los ???? son parametrizacion, para evtar ataques de inyeccion SQL. 
-    # aunque no haya riesgo real mola decirlo y tal
+    # aunque no haya riesgo real mola demuestra que se lo que hago
     """
     inserta una factura en la base de datos.
     'datos' es el return que devuelve extraer_datos_factura()
@@ -64,6 +64,10 @@ def listar_facturas() -> list:
     return [dict(fila) for fila in filas]
 
 def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
+    """
+    devolverá las ultimas facturas guardadas dependiendo del limite.
+    por defecto, estará en 5, por lo que mostrará las 5 ultimas
+    """
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row
     cursor = conexion.cursor()
@@ -76,6 +80,9 @@ def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
     return [dict(f) for f in filas]
 
 def obtener_total_facturas() -> float:
+    """
+    sumará el total de todas las facturas que haya en la base de datos.
+    """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
     cursor.execute("SELECT total FROM facturas")
@@ -94,6 +101,10 @@ def obtener_total_facturas() -> float:
     return total
 
 def buscar_por_comercio(texto: str) -> list[dict]:
+    """
+    el usuario introducirá el nombre de un comercio/establecimiento, 
+    y filtrará usando como patron lo que el usuario introduzca
+    """
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row
     cursor = conexion.cursor()
@@ -106,5 +117,17 @@ def buscar_por_comercio(texto: str) -> list[dict]:
     conexion.close()
     return [dict(f) for f in filas]
 
+def borrar_factura(id_factura: int) -> bool:
+    """
+    el usuario introducirá el id de la factura que quiera borrar, 
+    y el sistema
+    """
+    conexion = sqlite3.connect(DB_PATH)
+    cursor = conexion.cursor()
+    cursor.execute("DELETE FROM facturas WHERE id = ?", (id_factura,))
+    cambios = cursor.rowcount
+    conexion.commit()
+    conexion.close()
+    return cambios > 0
 
 
