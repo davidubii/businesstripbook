@@ -164,7 +164,7 @@ def exportar_facturas_a_csv_v1(ruta_csv: str) -> str:
 
     # crear CSV con encabezados y datos
     with open(ruta_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=campos, delimiter=";")  # writer preparado para diccionarios, que es lo que he usado en el codigo para mostrar datos
+        writer = csv.DictWriter(f, fieldnames=campos)  # writer preparado para diccionarios, que es lo que he usado en el codigo para mostrar datos
         writer.writeheader()  # escribe la primera línea con nombres de columnas
         for fila in filas:
             writer.writerow(dict(fila))  # escribe cada fila como diccionario
