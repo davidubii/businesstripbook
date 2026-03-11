@@ -13,7 +13,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from pdf_parser import extraer_datos_factura
 from conexion_bbdd import inicializar_bd, guardar_factura, borrar_factura, buscar_por_comercio
-from conexion_bbdd import exportar_facturas_a_csv, obtener_ultimas_facturas, obtener_total_facturas
+from conexion_bbdd import exportar_facturas_a_csv_v2, obtener_ultimas_facturas, obtener_total_facturas
 
 
 # log para ver que hace el bot y que muestre errores
@@ -124,7 +124,7 @@ async def exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ruta = os.path.join("exportaciones", nombre)
     os.makedirs("exportaciones", exist_ok=True)  # crea la carpeta si no existe
 
-    ruta_csv = exportar_facturas_a_csv(ruta)
+    ruta_csv = exportar_facturas_a_csv_v2(ruta)
 
     if not os.path.exists(ruta_csv):
         await update.message.reply_text("❌ No se ha podido generar el fichero CSV.")

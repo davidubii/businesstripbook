@@ -35,9 +35,9 @@ def inicializar_bd():
 
 def guardar_factura(datos: dict, ruta_pdf: str):
     """
-    Inserta una factura en la base de datos.
+    inserta una factura en la base de datos.
     'datos' es el diccionario que devuelve extraer_datos_factura() de pdf_parser.py.
-    Los ? son parametrización para evitar ataques SQL injection (buena práctica).
+    los ? son parametrización para evitar ataques SQL injection (se supone que es buena práctica).
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
@@ -60,8 +60,8 @@ def guardar_factura(datos: dict, ruta_pdf: str):
 
 def listar_facturas() -> list:
     """
-    Devuelve TODAS las facturas guardadas como lista de diccionarios.
-    Los diccionarios son más legibles que las tuplas de sqlite3.Row.
+    devuelve TODAS las facturas guardadas como lista de diccionarios.
+    los diccionarios son más legibles que las tuplas de sqlite3.Row.
     ORDER BY id DESC → las más recientes primero.
     """
     conexion = sqlite3.connect(DB_PATH)
@@ -75,7 +75,7 @@ def listar_facturas() -> list:
 
 def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
     """
-    Devuelve las últimas N facturas (por defecto 5).
+    devuelve las últimas N facturas (por defecto 5).
     LIMIT ? es lo que limita el número de filas devueltas.
     """
     conexion = sqlite3.connect(DB_PATH)
@@ -92,7 +92,7 @@ def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
 
 def obtener_total_facturas() -> float:
     """
-    Suma el importe total de TODAS las facturas en la base de datos.
+    suma el importe total de TODAS las facturas en la base de datos.
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
@@ -115,7 +115,7 @@ def obtener_total_facturas() -> float:
 
 def buscar_por_comercio(texto: str) -> list[dict]:
     """
-    Busca facturas cuyo 'comercio' contenga el texto introducido.
+    busca facturas cuyo 'comercio' contenga el texto introducido.
     %texto% = patrón SQL LIKE (contiene en cualquier parte).
     COLLATE NOCASE = búsqueda sin distinguir mayúsculas/minúsculas.
     """
@@ -134,8 +134,8 @@ def buscar_por_comercio(texto: str) -> list[dict]:
 
 def borrar_factura(id_factura: int) -> bool:
     """
-    Borra la factura con el ID especificado.
-    Devuelve True si se borró algo, False si no existía.
+    borra la factura con el ID especificado.
+    devuelve True si se borró algo, False si no existía.
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
@@ -146,10 +146,12 @@ def borrar_factura(id_factura: int) -> bool:
     return cambios > 0  # solo es true si borró algo
 
 
-def exportar_facturas_a_csv(ruta_csv: str) -> str:
+
+def exportar_facturas_a_csv_v1(ruta_csv: str) -> str:
     """
-    Exporta todas las facturas a un fichero CSV.
-    Devuelve la ruta del fichero generado.
+    exporta todas las facturas a un fichero CSV.
+    devuelve la ruta del fichero generado.
+    (beta, se puede mejorar)
     """
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row
@@ -162,7 +164,7 @@ def exportar_facturas_a_csv(ruta_csv: str) -> str:
 
     # crear CSV con encabezados y datos
     with open(ruta_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=campos)  # writer preparado para diccionarios, que es lo que he usado en el codigo para mostrar datos
+        writer = csv.DictWriter(f, fieldnames=campos, delimiter=";")  # writer preparado para diccionarios, que es lo que he usado en el codigo para mostrar datos
         writer.writeheader()  # escribe la primera línea con nombres de columnas
         for fila in filas:
             writer.writerow(dict(fila))  # escribe cada fila como diccionario

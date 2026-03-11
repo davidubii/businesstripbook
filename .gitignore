@@ -5,3 +5,4 @@ __pycache__/
 *.db
 main.py
 exportaciones/
+.vscode

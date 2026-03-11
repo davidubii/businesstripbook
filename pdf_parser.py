@@ -56,8 +56,8 @@ def _buscar_iva(texto: str) -> str | None:
 def _buscar_comercio(texto: str) -> str | None:
     """
     estrategia en dos pasos:
-    1. Buscar campo explícito ('Razón social:', 'Proveedor:', etc.).
-    2. Si no, tomar la primera línea no vacía del texto (encabezado típico).
+    1. buscar campo explícito ('Razón social:', 'Proveedor:', etc.).
+    2. si no, tomar la primera línea no vacía del texto (encabezado típico).
     """
     # intento 1: campo explícito (?:...) = grupo no capturador
     patron_explicito = r'(?:Razón social|Proveedor|Empresa|Emisor)\s*[:\-]?\s*(.+)'
