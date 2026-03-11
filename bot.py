@@ -1,5 +1,5 @@
 
-# -> !! RECORDAR: handler es "cuando pase esto, haz esto"
+# -> !! RECORDAR: handler es "cuando pase esto, haz esto" y hay que añadirlos al crearlos al final si no caca
 # el bot esta preguntando siempre en telegram: ¿me estan escribiendo? esto = "polling"
 # 10/03/26 -> agregar manejo de fallos del bot, ortografia, añadir la funcion de ayuda 
 # e investigar Railway, tambien mirar sobre como rechazar fotos o archivos que no toquen
@@ -11,7 +11,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from pdf_parser import extraer_datos_factura
-from conexion_bbdd import inicializar_bd, guardar_factura
+from conexion_bbdd import inicializar_bd, guardar_factura, buscar_por_comercio, obtener_ultimas_facturas, obtener_total_facturas
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -26,6 +26,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): #async perm
         "¡Solo tienes que enviarme el archivo!"
     )
 
+################ COMANDOS UTILES ######################
+
+async def listar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    facturas = obtener_ultimas_facturas(5)
+
+    if not facturas:
+        await update.message.reply_text("📭 Todavía no hay facturas guardadas.")
+        return
+
+    lineas = ["📋 *Últimas facturas guardadas:*", ""]
+    for f in facturas:
+        linea = f"• [{f['id']}] {f['fecha'] or 'Sin fecha'} – {f['comercio'] or 'Sin comercio'} – {f['total'] or '?'} €"
+        lineas.append(linea)
+
+    await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
+
+
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text( # -> si alguien en tu chat escribe "/ayuda, di esto"
         "📖 *Comandos disponibles:*\n\n"
@@ -38,6 +55,33 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📄 También puedes enviarme directamente un PDF para procesarlo.",
         parse_mode="Markdown" #-> para negritas con *
     )
+
+
+async def total(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    suma = obtener_total_facturas()
+    mensaje = f"💶 El importe total acumulado de tus facturas es: *{suma:.2f} €*"
+    await update.message.reply_text(mensaje, parse_mode="Markdown")
+
+
+async def buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("🔍 Uso: /buscar nombre_comercio\nEjemplo: /buscar mercadona")
+        return
+
+    texto_busqueda = " ".join(context.args)
+    resultados = buscar_por_comercio(texto_busqueda)
+
+    if not resultados:
+        await update.message.reply_text(f"❌ No se han encontrado facturas para: *{texto_busqueda}*", parse_mode="Markdown")
+        return
+
+    lineas = [f"🔍 *Resultados para* `{texto_busqueda}`:", ""]
+    for f in resultados[:10]:
+        linea = f"• [{f['id']}] {f['fecha'] or 'Sin fecha'} – {f['comercio'] or 'Sin comercio'} – {f['total'] or '?'} €"
+        lineas.append(linea)
+
+    await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
+
 
 async def rechazar_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -102,6 +146,10 @@ def main():
     # registrar manejadores (handlers)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ayuda", ayuda))
+    app.add_handler(CommandHandler("listar", listar))
+    app.add_handler(CommandHandler("total", total))
+    app.add_handler(CommandHandler("buscar", buscar))
+
     app.add_handler(MessageHandler(filters.Document.ALL, recibir_pdf))
     app.add_handler(MessageHandler(filters.PHOTO, rechazar_foto))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_desconocido))  # siempre el último

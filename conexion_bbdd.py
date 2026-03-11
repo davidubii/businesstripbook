@@ -7,7 +7,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "facturas.db")
 
 def inicializar_bd():
-    os.makedirs(BASE_DIR, exist_ok=True)  # asegura que el directorio existe
+    os.makedirs(BASE_DIR, exist_ok=True)  # asegura que el directorio existe. si existe, no crea nada y lo abre:
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
     cursor.execute("""
@@ -62,3 +62,49 @@ def listar_facturas() -> list:
     filas = cursor.fetchall()
     conexion.close()
     return [dict(fila) for fila in filas]
+
+def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
+    conexion = sqlite3.connect(DB_PATH)
+    conexion.row_factory = sqlite3.Row
+    cursor = conexion.cursor()
+    cursor.execute(
+        "SELECT id, comercio, fecha, total FROM facturas ORDER BY id DESC LIMIT ?",
+        (limite,)
+    )
+    filas = cursor.fetchall()
+    conexion.close()
+    return [dict(f) for f in filas]
+
+def obtener_total_facturas() -> float:
+    conexion = sqlite3.connect(DB_PATH)
+    cursor = conexion.cursor()
+    cursor.execute("SELECT total FROM facturas")
+    filas = cursor.fetchall()
+    conexion.close()
+
+    total = 0.0
+    for (importe_str,) in filas:
+        if not importe_str:
+            continue
+        importe_str = importe_str.replace(".", "").replace(",", ".")
+        try:
+            total += float(importe_str)
+        except ValueError:
+            continue
+    return total
+
+def buscar_por_comercio(texto: str) -> list[dict]:
+    conexion = sqlite3.connect(DB_PATH)
+    conexion.row_factory = sqlite3.Row
+    cursor = conexion.cursor()
+    patron = f"%{texto}%"
+    cursor.execute(
+        "SELECT id, comercio, fecha, total FROM facturas WHERE comercio LIKE ? COLLATE NOCASE ORDER BY id DESC",
+        (patron,)
+    )
+    filas = cursor.fetchall()
+    conexion.close()
+    return [dict(f) for f in filas]
+
+
+
