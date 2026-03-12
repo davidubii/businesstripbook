@@ -4,11 +4,10 @@ import os
 import csv
 
 # SQLite usa /* */ o -- para comentarios SQL, no """ <-- RECORDAR IMPORTANTE
-# esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
 # __file__ es la ruta del archivo actual, dirname saca la carpeta y abspath la hace absoluta
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta donde está este archivo python
 DB_PATH = os.path.join(BASE_DIR, "facturas.db")  # ruta completa al fichero de la base de datos
-
+# esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
 
 def inicializar_bd():
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -18,17 +17,17 @@ def inicializar_bd():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS facturas (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            comercio    TEXT,
-            fecha       TEXT,
-            total       TEXT,
-            iva         TEXT,
-            ruta_pdf    TEXT,
-            fecha_carga TEXT
+            comercio    TEXT, /*datos extraidos*/
+            fecha       TEXT, /*datos extraidos*/
+            total       TEXT, /*datos extraidos*/
+            iva         TEXT, /*datos extraidos*/
+            ruta_pdf    TEXT, /*donde esta guardado el archivo*/
+            fecha_carga TEXT  /*cuándo se procesó la factura*/
         ) 
     """) 
     
     # aquí se establecen las columnas de la base de datos, y que tipo de dato reciben
-    # ("TEXT = string", el id se pone un número que va incrementando automáticamente segun se van ingresando los datos)
+    # ("TEXT = string", el id se pone un número que incrementa en cada insert que se hace.).
     
     conexion.commit()
     conexion.close()
@@ -83,7 +82,7 @@ def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
     cursor = conexion.cursor()
     cursor.execute(
         "SELECT id, comercio, fecha, total FROM facturas ORDER BY id DESC LIMIT ?",
-        (limite,)  # tupla de un solo elemento necesita coma final
+        (limite,)  # al ser una tupla de un solo elemento necesita coma al final
     )
     filas = cursor.fetchall()
     conexion.close()
@@ -104,8 +103,7 @@ def obtener_total_facturas() -> float:
     for (importe_str,) in filas:  # dividde la tupla (importe_str,)
         if not importe_str:  # si está vacío, pasa al siguiente
             continue 
-        # cambia el formato ya que en españa se suele usar mucho la coma en los recibos: "77,44" → "77.44"
-        importe_str = importe_str.replace(".", "").replace(",", ".") 
+        importe_str = importe_str.replace(".", "").replace(",", ".") # se cambia el formato ya que en españa se suele usar mucho la coma en los recibos: "77,44" → "77.44"
         try:
             total += float(importe_str)  # suma si se puede convertir a número
         except ValueError:
@@ -147,7 +145,7 @@ def borrar_factura(id_factura: int) -> bool:
 
 
 
-def exportar_facturas_a_csv_v1(ruta_csv: str) -> str:
+def exportar_facturas_a_csv_v3(ruta_csv: str) -> str:
     """
     exporta todas las facturas a un fichero CSV.
     devuelve la ruta del fichero generado.
@@ -163,10 +161,11 @@ def exportar_facturas_a_csv_v1(ruta_csv: str) -> str:
     campos = filas[0].keys() if filas else []  # encabezados de las columnas
 
     # crear CSV con encabezados y datos
-    with open(ruta_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=campos)  # writer preparado para diccionarios, que es lo que he usado en el codigo para mostrar datos
+    with open(ruta_csv, "w", newline="", encoding="utf-8-sig") as f:  # utf-8-sig para que Excel reconozca la codificación
+        writer = csv.DictWriter(f, fieldnames=campos, delimiter=";")  # ; como separador para Excel en español
         writer.writeheader()  # escribe la primera línea con nombres de columnas
         for fila in filas:
             writer.writerow(dict(fila))  # escribe cada fila como diccionario
 
-    return ruta_csv # -> devuelve la ruta del CSV
+    return ruta_csv  # -> devuelve la ruta del CSV
+
