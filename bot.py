@@ -220,6 +220,7 @@ def main():
     app.add_handler(MessageHandler(filters.Document.ALL, recibir_pdf))     # PDFs
     app.add_handler(MessageHandler(filters.PHOTO, rechazar_foto))          # fotos
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensaje_desconocido))  # texto normal
+    app.add_handler(MessageHandler(filters.COMMAND, mensaje_desconocido)) # comandos desconocidos
 
     print("🤖 Bot arrancado. Esperando mensajes...")
     app.run_polling()  # bucle infinito que escucha mensajes de Telegram

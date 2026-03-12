@@ -134,14 +134,27 @@ def borrar_factura(id_factura: int) -> bool:
     """
     borra la factura con el ID especificado.
     devuelve True si se borró algo, False si no existía.
+    tras el borrado, reajusta el contador de IDs para que sean consecutivos.
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
     cursor.execute("DELETE FROM facturas WHERE id = ?", (id_factura,))
     cambios = cursor.rowcount  # número de filas afectadas (0 o 1)
+
+    if cambios > 0:
+        # obtener el máximo id actual (0 si la tabla está vacía)
+        cursor.execute("SELECT MAX(id) FROM facturas")
+        max_id = cursor.fetchone()[0] or 0
+        
+        # resetear el contador al máximo id actual
+        cursor.execute(
+            "UPDATE sqlite_sequence SET seq = ? WHERE name = 'facturas'",
+            (max_id,)
+        )
+
     conexion.commit()
     conexion.close()
-    return cambios > 0  # solo es true si borró algo
+    return cambios > 0
 
 
 
