@@ -67,6 +67,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔍 /buscar [nombre] → Buscar por comercio\n"
         "🗑️ /borrar [id] → Eliminar una factura\n"
         "⬇️ /exportar para descargar todas las facturas en un CSV\n"
+        "🎛️ /filtrar → Usa el formato dd/mm/yyy para filtrar facturas\n"
         "❓ /ayuda → Ver esta ayuda\n\n"
         "📄 También puedes enviar directamente un PDF para procesarlo.",
         parse_mode="Markdown" # permite negritas (*texto*) y monospaced (`texto`) si se usasen
