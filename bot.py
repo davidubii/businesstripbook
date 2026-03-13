@@ -7,12 +7,13 @@
 
 from dotenv import load_dotenv
 import os
+import re
 import logging
 from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from pdf_parser import extraer_datos_factura
-from conexion_bbdd import inicializar_bd, guardar_factura, borrar_factura, buscar_por_comercio
+from conexion_bbdd import inicializar_bd, guardar_factura, borrar_factura, buscar_por_comercio, filtrar_facturas_por_fecha
 from conexion_bbdd import exportar_facturas_a_csv_v3, obtener_ultimas_facturas, obtener_total_facturas
 
 
@@ -137,6 +138,53 @@ async def exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption="📎 Aquí tienes tus facturas en formato CSV. Puedes abrirlo con Excel."
     )
 
+async def filtrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Filtra facturas entre dos fechas. Uso: /filtrar dd/mm/yyyy dd/mm/yyyy"""
+
+    # validar que el usuario pasó exactamente 2 argumentos
+    if len(context.args) != 2:
+        await update.message.reply_text(
+            "⚠️ Uso correcto: `/filtrar dd/mm/yyyy dd/mm/yyyy`\n"
+            "Ejemplo: `/filtrar 01/01/2025 31/03/2025`",
+            parse_mode="Markdown"
+        )
+        return
+
+    fecha_inicio, fecha_fin = context.args[0], context.args[1]
+    # validar formato de fecha con regex
+
+    patron = r"^\d{2}/\d{2}/\d{4}$"
+    if not re.match(patron, fecha_inicio) or not re.match(patron, fecha_fin):
+        await update.message.reply_text(
+            "❌ Formato de fecha incorrecto. Usa `dd/mm/yyyy`.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    facturas = filtrar_facturas_por_fecha(fecha_inicio, fecha_fin)
+
+    if not facturas:
+        await update.message.reply_text(
+            f"📭 No hay facturas entre el {fecha_inicio} y el {fecha_fin}."
+        )
+        return
+
+    # se calcula el total del período
+    total_periodo = sum(
+        float(str(f["total"]).replace("€", "").replace(",", ".").strip())
+        for f in facturas
+    )
+
+    # y se construye la respuesta con los datos
+    lineas = [f"📅 Facturas del {fecha_inicio} al {fecha_fin}:\n"]
+    for f in facturas:
+        lineas.append(f"• {f['id']} {f['fecha']} — {f['comercio']} — {f['total']} €")
+
+    lineas.append(f"\n💶 Total del período: {total_periodo:.2f} €")
+    lineas.append(f"📄 Facturas encontradas: {len(facturas)}")
+
+    await update.message.reply_text("\n".join(lineas))
+
 
 ############# COSAS QUE EL USUARIO PUEDE HACER Y HAY QUE EVITAR ###########################
 
@@ -216,6 +264,7 @@ def main():
     app.add_handler(CommandHandler("buscar", buscar))
     app.add_handler(CommandHandler("borrar", borrar))
     app.add_handler(CommandHandler("exportar", exportar))
+    app.add_handler(CommandHandler("filtrar", filtrar))
 
     app.add_handler(MessageHandler(filters.Document.ALL, recibir_pdf))     # PDFs
     app.add_handler(MessageHandler(filters.PHOTO, rechazar_foto))          # fotos

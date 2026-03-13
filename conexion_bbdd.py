@@ -88,6 +88,35 @@ def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
     conexion.close()
     return [dict(f) for f in filas]
 
+def filtrar_facturas_por_fecha(fecha_inicio: str, fecha_fin: str) -> list[dict]:
+    """
+    Devuelve facturas cuya fecha esté entre fecha_inicio y fecha_fin (inclusive).
+    Las fechas deben pasarse en formato dd/mm/yyyy.
+    """
+    conexion = sqlite3.connect(DB_PATH)
+    conexion.row_factory = sqlite3.Row
+    cursor = conexion.cursor()
+
+    # sqLite no entiende dd/mm/yyyy para comparar rangos.
+    # hay que reorganizar la fecha a yyyy-mm-dd con substr() para que la comparación funcione.
+    cursor.execute("""
+        SELECT * FROM facturas
+        WHERE substr(fecha, 7, 4) || '-' || substr(fecha, 4, 2) || '-' || substr(fecha, 1, 2)
+              BETWEEN ? AND ?
+        ORDER BY substr(fecha, 7, 4) || substr(fecha, 4, 2) || substr(fecha, 1, 2) ASC
+    """, (convertir_fecha(fecha_inicio), convertir_fecha(fecha_fin)))
+
+    filas = cursor.fetchall()
+    conexion.close()
+    return [dict(fila) for fila in filas]
+
+
+def convertir_fecha(fecha_ddmmyyyy: str) -> str:
+    """convierte 'dd/mm/yyyy' a 'yyyy-mm-dd' para comparaciones en SQLite."""
+    partes = fecha_ddmmyyyy.strip().split("/")
+    return f"{partes[2]}-{partes[1]}-{partes[0]}"
+
+
 
 def obtener_total_facturas() -> float:
     """
