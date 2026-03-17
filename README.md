@@ -35,10 +35,10 @@ El proyecto está organizado en tres capas/módulos bien separados:
 - `bot.py`  
   Capa de interfaz con Telegram. Define todos los comandos (`/start`, `/ayuda`, `/listar`, `/total`, `/buscar`, `/borrar`, `/exportar`, `/filtrar`), maneja la recepción de PDFs y construye los mensajes de respuesta al usuario.[file:1]
 
-- `pdf_parser-3.py`  
+- `pdf_parser.py`  
   Capa de lógica de negocio encargada de abrir el PDF, extraer todo el texto y localizar los campos clave mediante expresiones regulares (fecha, total, IVA, comercio). Expone la función principal `extraer_datos_factura(ruta_pdf: str) -> dict`.[file:3]
 
-- `conexion_bbdd-2.py`  
+- `conexion_bbdd.py`  
   Capa de persistencia basada en SQLite. Se ocupa de crear y actualizar la tabla `facturas`, guardar nuevas facturas, listarlas, filtrarlas, sumar totales, buscar por comercio, borrar y exportar a CSV.[file:2]
 
 Esta separación hace que el bot sea más fácil de mantener y ampliar (por ejemplo, cambiando el parser o la base de datos sin tocar la lógica de Telegram).
