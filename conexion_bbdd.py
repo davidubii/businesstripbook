@@ -5,34 +5,45 @@ import csv
 
 # SQLite usa /* */ o -- para comentarios SQL, no """ <-- RECORDAR IMPORTANTE
 # __file__ es la ruta del archivo actual, dirname saca la carpeta y abspath la hace absoluta
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # carpeta donde está este archivo python
-DB_PATH = os.path.join(BASE_DIR, "facturas.db")  # ruta completa al fichero de la base de datos
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # carpeta donde está este archivo python
+DB_PATH = os.path.join(BASE_DIR, "facturas.db") # ruta completa al fichero de la base de datos
 # esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
 
 def inicializar_bd():
     os.makedirs(BASE_DIR, exist_ok=True)
-    
+
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS facturas (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            comercio    TEXT, /*datos extraidos*/
-            fecha       TEXT, /*datos extraidos*/
-            total       TEXT, /*datos extraidos*/
-            iva         TEXT, /*datos extraidos*/
-            ruta_pdf    TEXT, /*donde esta guardado el archivo*/
-            fecha_carga TEXT  /*cuándo se procesó la factura*/
-        ) 
-    """) 
-    
+    CREATE TABLE IF NOT EXISTS facturas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id INTEGER, /*identifica el chat de telegram*/
+        comercio TEXT, /*datos extraidos*/
+        fecha TEXT, /*datos extraidos*/
+        total TEXT, /*datos extraidos*/
+        iva TEXT, /*datos extraidos*/
+        ruta_pdf TEXT, /*donde esta guardado el archivo*/
+        fecha_carga TEXT /*cuándo se procesó la factura*/
+    ) 
+    """)
+
     # aquí se establecen las columnas de la base de datos, y que tipo de dato reciben
     # ("TEXT = string", el id se pone un número que incrementa en cada insert que se hace.).
-    
+
+    # comprobación extra: si la tabla ya existía de antes, puede no tener aún la columna chat_id.
+    # PRAGMA table_info devuelve la lista de columnas; si no está chat_id, se añade con ALTER TABLE.
+    cursor.execute("PRAGMA table_info(facturas)")
+    columnas = [fila[1] for fila in cursor.fetchall()]
+    if "chat_id" not in columnas:
+        cursor.execute(
+            "ALTER TABLE facturas ADD COLUMN chat_id INTEGER /* id del chat de Telegram */"
+        )
+
     conexion.commit()
     conexion.close()
 
-def guardar_factura(datos: dict, ruta_pdf: str):
+
+def guardar_factura(datos: dict, ruta_pdf: str, chat_id: int):
     """
     inserta una factura en la base de datos.
     'datos' es el diccionario que devuelve extraer_datos_factura() de pdf_parser.py.
@@ -40,24 +51,28 @@ def guardar_factura(datos: dict, ruta_pdf: str):
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
-    
+
+    # se añade chat_id para ligar cada factura al chat concreto de Telegram (multiusuario).
     cursor.execute(""" 
-        INSERT INTO facturas (comercio, fecha, total, iva, ruta_pdf, fecha_carga)
-        VALUES (?, ?, ?, ?, ?, ?) 
+    INSERT INTO facturas (chat_id, comercio, fecha, total, iva, ruta_pdf, fecha_carga)
+    VALUES (?, ?, ?, ?, ?, ?, ?) 
     """, (
-        datos.get("comercio"),    # si no existe el campo, devuelve None
+        chat_id,  # primer valor: identifica a qué chat pertenece esta factura
+        datos.get("comercio"),  # si no existe el campo, devuelve None
         datos.get("fecha"),
         datos.get("total"),
         datos.get("iva"),
-        ruta_pdf,                 # ruta del PDF en el disco
+        ruta_pdf,  # ruta del PDF en el disco
         datetime.now().strftime("%d/%m/%Y %H:%M")  # fecha y hora actual
     ))
-    
+
     conexion.commit()
+    nuevo_id = cursor.lastrowid
     conexion.close()
+    return nuevo_id
 
 
-def listar_facturas() -> list:
+def listar_facturas(chat_id: int) -> list:
     """
     devuelve TODAS las facturas guardadas como lista de diccionarios.
     los diccionarios son más legibles que las tuplas de sqlite3.Row.
@@ -66,13 +81,17 @@ def listar_facturas() -> list:
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row  # permite acceder por nombre de columna
     cursor = conexion.cursor()
-    cursor.execute("SELECT * FROM facturas ORDER BY id DESC")
+    # se filtra por chat_id para que cada chat solo vea sus propias facturas
+    cursor.execute(
+        "SELECT * FROM facturas WHERE chat_id = ? ORDER BY id DESC",
+        (chat_id,)
+    )
     filas = cursor.fetchall()  # fetchall() = todas las filas
     conexion.close()
     return [dict(fila) for fila in filas]  # convierte cada columna en dict
 
 
-def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
+def obtener_ultimas_facturas(chat_id: int, limite: int = 5) -> list[dict]:
     """
     devuelve las últimas N facturas (por defecto 5).
     LIMIT ? es lo que limita el número de filas devueltas.
@@ -80,15 +99,19 @@ def obtener_ultimas_facturas(limite: int = 5) -> list[dict]:
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row
     cursor = conexion.cursor()
+    # mismo patrón: se filtra por chat_id y luego se limita el número de filas
     cursor.execute(
-        "SELECT id, comercio, fecha, total FROM facturas ORDER BY id DESC LIMIT ?",
-        (limite,)  # al ser una tupla de un solo elemento necesita coma al final
+        "SELECT id, comercio, fecha, total FROM facturas "
+        "WHERE chat_id = ? "
+        "ORDER BY id DESC LIMIT ?",
+        (chat_id, limite)  # primero el chat_id, luego el límite
     )
     filas = cursor.fetchall()
     conexion.close()
     return [dict(f) for f in filas]
 
-def filtrar_facturas_por_fecha(fecha_inicio: str, fecha_fin: str) -> list[dict]:
+
+def filtrar_facturas_por_fecha(fecha_inicio: str, fecha_fin: str, chat_id: int) -> list[dict]:
     """
     Devuelve facturas cuya fecha esté entre fecha_inicio y fecha_fin (inclusive).
     Las fechas deben pasarse en formato dd/mm/yyyy.
@@ -99,12 +122,14 @@ def filtrar_facturas_por_fecha(fecha_inicio: str, fecha_fin: str) -> list[dict]:
 
     # sqLite no entiende dd/mm/yyyy para comparar rangos.
     # hay que reorganizar la fecha a yyyy-mm-dd con substr() para que la comparación funcione.
+    # además se añade chat_id al WHERE para que solo se tengan en cuenta las facturas de ese chat.
     cursor.execute("""
-        SELECT * FROM facturas
-        WHERE substr(fecha, 7, 4) || '-' || substr(fecha, 4, 2) || '-' || substr(fecha, 1, 2)
-              BETWEEN ? AND ?
-        ORDER BY substr(fecha, 7, 4) || substr(fecha, 4, 2) || substr(fecha, 1, 2) ASC
-    """, (convertir_fecha(fecha_inicio), convertir_fecha(fecha_fin)))
+    SELECT * FROM facturas
+    WHERE chat_id = ?
+      AND substr(fecha, 7, 4) || '-' || substr(fecha, 4, 2) || '-' || substr(fecha, 1, 2)
+          BETWEEN ? AND ?
+    ORDER BY substr(fecha, 7, 4) || substr(fecha, 4, 2) || substr(fecha, 1, 2) ASC
+    """, (chat_id, convertir_fecha(fecha_inicio), convertir_fecha(fecha_fin)))
 
     filas = cursor.fetchall()
     conexion.close()
@@ -112,35 +137,40 @@ def filtrar_facturas_por_fecha(fecha_inicio: str, fecha_fin: str) -> list[dict]:
 
 
 def convertir_fecha(fecha_ddmmyyyy: str) -> str:
-    """convierte 'dd/mm/yyyy' a 'yyyy-mm-dd' para comparaciones en SQLite."""
+    """
+    convierte 'dd/mm/yyyy' a 'yyyy-mm-dd' para comparaciones en SQLite.
+    """
     partes = fecha_ddmmyyyy.strip().split("/")
     return f"{partes[2]}-{partes[1]}-{partes[0]}"
 
 
-
-def obtener_total_facturas() -> float:
+def obtener_total_facturas(chat_id: int) -> float:
     """
     suma el importe total de TODAS las facturas en la base de datos.
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
-    cursor.execute("SELECT total FROM facturas")  # solo la columna total
+    # solo se seleccionan los totales del chat actual
+    cursor.execute(
+        "SELECT total FROM facturas WHERE chat_id = ?",  # solo la columna total
+        (chat_id,)
+    )
     filas = cursor.fetchall()
     conexion.close()
 
-    total = 0.0 
+    total = 0.0
     for (importe_str,) in filas:  # dividde la tupla (importe_str,)
         if not importe_str:  # si está vacío, pasa al siguiente
-            continue 
-        importe_str = importe_str.replace(".", "").replace(",", ".") # se cambia el formato ya que en españa se suele usar mucho la coma en los recibos: "77,44" → "77.44"
+            continue
+        importe_str = importe_str.replace(".", "").replace(",", ".")  # se cambia el formato ya que en españa se suele usar mucho la coma en los recibos: "77,44" → "77.44"
         try:
             total += float(importe_str)  # suma si se puede convertir a número
         except ValueError:
             continue  # si no es un número válido, lo ignora
-    return total 
+    return total
 
 
-def buscar_por_comercio(texto: str) -> list[dict]:
+def buscar_por_comercio(texto: str, chat_id: int) -> list[dict]:
     """
     busca facturas cuyo 'comercio' contenga el texto introducido.
     %texto% = patrón SQL LIKE (contiene en cualquier parte).
@@ -150,16 +180,19 @@ def buscar_por_comercio(texto: str) -> list[dict]:
     conexion.row_factory = sqlite3.Row
     cursor = conexion.cursor()
     patron = f"%{texto}%"  # patrón que introduce el usuario para el LIKE
+    # se añade chat_id al WHERE para que cada chat solo busque en sus propias facturas
     cursor.execute(
-        "SELECT id, comercio, fecha, total FROM facturas WHERE comercio LIKE ? COLLATE NOCASE ORDER BY id DESC",
-        (patron,)
+        "SELECT id, comercio, fecha, total FROM facturas "
+        "WHERE comercio LIKE ? COLLATE NOCASE AND chat_id = ? "
+        "ORDER BY id DESC",
+        (patron, chat_id)
     )
     filas = cursor.fetchall()
     conexion.close()
     return [dict(f) for f in filas]
 
 
-def borrar_factura(id_factura: int) -> bool:
+def borrar_factura(id_factura: int, chat_id: int) -> bool:
     """
     borra la factura con el ID especificado.
     devuelve True si se borró algo, False si no existía.
@@ -167,14 +200,18 @@ def borrar_factura(id_factura: int) -> bool:
     """
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
-    cursor.execute("DELETE FROM facturas WHERE id = ?", (id_factura,))
+    # solo se borra la factura si pertenece al chat indicado
+    cursor.execute(
+        "DELETE FROM facturas WHERE id = ? AND chat_id = ?",
+        (id_factura, chat_id)
+    )
     cambios = cursor.rowcount  # número de filas afectadas (0 o 1)
 
     if cambios > 0:
         # obtener el máximo id actual (0 si la tabla está vacía)
         cursor.execute("SELECT MAX(id) FROM facturas")
         max_id = cursor.fetchone()[0] or 0
-        
+
         # resetear el contador al máximo id actual
         cursor.execute(
             "UPDATE sqlite_sequence SET seq = ? WHERE name = 'facturas'",
@@ -186,8 +223,7 @@ def borrar_factura(id_factura: int) -> bool:
     return cambios > 0
 
 
-
-def exportar_facturas_a_csv_v3(ruta_csv: str) -> str:
+def exportar_facturas_a_csv_v3(ruta_csv: str, chat_id: int) -> str:
     """
     exporta todas las facturas a un fichero CSV.
     devuelve la ruta del fichero generado.
@@ -196,7 +232,11 @@ def exportar_facturas_a_csv_v3(ruta_csv: str) -> str:
     conexion = sqlite3.connect(DB_PATH)
     conexion.row_factory = sqlite3.Row
     cursor = conexion.cursor()
-    cursor.execute("SELECT * FROM facturas ORDER BY id ASC")  # ASC = de más antigua a más reciente
+    # se exportan solo las facturas del chat actual para que cada usuario tenga su propio CSV
+    cursor.execute(
+        "SELECT * FROM facturas WHERE chat_id = ? ORDER BY id ASC",  # ASC = ASCendente = de más antigua a más reciente
+        (chat_id,)
+    )
     filas = cursor.fetchall()
     conexion.close()
 
@@ -210,4 +250,3 @@ def exportar_facturas_a_csv_v3(ruta_csv: str) -> str:
             writer.writerow(dict(fila))  # escribe cada fila como diccionario
 
     return ruta_csv  # -> devuelve la ruta del CSV
-
