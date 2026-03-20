@@ -52,6 +52,6 @@ Esta separación hace que el bot sea más fácil de mantener y ampliar (por ejem
 ├── bot.py                 # Bot de Telegram y comandos
 ├── pdf_parser.py          # Lógica de extracción de datos desde el PDF
 ├── conexion_bbdd.py       # Acceso y operaciones sobre la base de datos SQLite
-├── .env                   # TOKEN del bot de Telegram (no se versiona)
-├── facturas/              # Carpeta donde se guardan los PDFs descargados
+├── .env                   # TOKEN del bot de Telegram (inaccesible)
+├── facturas/              # Carpeta con un PDF de prueba para probar el funcionamiento del bot
 └── exportaciones/         # Carpeta con los CSV generados por /exportar
