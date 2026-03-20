@@ -6,3 +6,4 @@ __pycache__/
 main.py
 exportaciones/
 .vscode
+fix_db.py

@@ -6,7 +6,7 @@ import csv
 # SQLite usa /* */ o -- para comentarios SQL, no """ <-- RECORDAR IMPORTANTE
 # __file__ es la ruta del archivo actual, dirname saca la carpeta y abspath la hace absoluta
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # carpeta donde está este archivo python
-DB_PATH = os.path.join(BASE_DIR, "facturas.db") # ruta completa al fichero de la base de datos
+DB_PATH = os.path.join(BASE_DIR, "bbdd/facturas.db") # ruta completa al fichero de la base de datos
 # esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
 
 def inicializar_bd():
@@ -17,13 +17,13 @@ def inicializar_bd():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS facturas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chat_id INTEGER, /*identifica el chat de telegram*/
-        comercio TEXT, /*datos extraidos*/
-        fecha TEXT, /*datos extraidos*/
-        total TEXT, /*datos extraidos*/
-        iva TEXT, /*datos extraidos*/
-        ruta_pdf TEXT, /*donde esta guardado el archivo*/
-        fecha_carga TEXT /*cuándo se procesó la factura*/
+        chat_id INTEGER,
+        comercio TEXT,
+        fecha TEXT,
+        total TEXT,
+        iva TEXT,
+        ruta_pdf TEXT,
+        fecha_carga TEXT
     ) 
     """)
 
@@ -31,13 +31,19 @@ def inicializar_bd():
     # ("TEXT = string", el id se pone un número que incrementa en cada insert que se hace.).
 
     # comprobación extra: si la tabla ya existía de antes, puede no tener aún la columna chat_id.
-    # PRAGMA table_info devuelve la lista de columnas; si no está chat_id, se añade con ALTER TABLE.
     cursor.execute("PRAGMA table_info(facturas)")
     columnas = [fila[1] for fila in cursor.fetchall()]
     if "chat_id" not in columnas:
         cursor.execute(
-            "ALTER TABLE facturas ADD COLUMN chat_id INTEGER /* id del chat de Telegram */"
+            "ALTER TABLE facturas ADD COLUMN chat_id INTEGER"
         )
+
+    # reseteo de emergencia del contador de ids:
+    # si la tabla está vacía pero sqlite_sequence aún recuerda un id anterior (por ejemplo, seq=1),
+    # el primer insert daría id=2 en vez de id=1. al borrar la entrada, SQLite empieza desde 0+1=1.
+    cursor.execute("SELECT COUNT(*) FROM facturas")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'facturas'")
 
     conexion.commit()
     conexion.close()
@@ -212,11 +218,19 @@ def borrar_factura(id_factura: int, chat_id: int) -> bool:
         cursor.execute("SELECT MAX(id) FROM facturas")
         max_id = cursor.fetchone()[0] or 0
 
-        # resetear el contador al máximo id actual
-        cursor.execute(
-            "UPDATE sqlite_sequence SET seq = ? WHERE name = 'facturas'",
-            (max_id,)
-        )
+        if max_id == 0:
+            # si la tabla quedó vacía, se elimina completamente el registro de sqlite_sequence.
+            # así SQLite no tiene ningún valor previo y el próximo insert empieza desde 1.
+            # hacer UPDATE a 0 no es suficiente: si la entrada ya tenía seq=1, SQLite devuelve id=2.
+            cursor.execute(
+                "DELETE FROM sqlite_sequence WHERE name = 'facturas'"
+            )
+        else:
+            # si aún quedan facturas, se actualiza el contador al máximo id existente
+            cursor.execute(
+                "UPDATE sqlite_sequence SET seq = ? WHERE name = 'facturas'",
+                (max_id,)
+            )
 
     conexion.commit()
     conexion.close()
