@@ -5,12 +5,13 @@ import csv
 
 # SQLite usa /* */ o -- para comentarios SQL, no """ <-- RECORDAR IMPORTANTE
 # __file__ es la ruta del archivo actual, dirname saca la carpeta y abspath la hace absoluta
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # carpeta donde está este archivo python
-DB_PATH = os.path.join(BASE_DIR, "bbdd/facturas.db") # ruta completa al fichero de la base de datos
+DEFAULT_BASE = os.path.dirname(os.path.abspath(__file__)) # carpeta donde está este archivo python
+BASE_DIR = os.getenv("DB_DIR", os.path.join(DEFAULT_BASE, "bbdd")) # ruta completa al fichero de la base de datos
 # esto calcula la ruta absoluta sin q importe dónde esté ejecutándose el programa
+DB_PATH = os.path.join(BASE_DIR, "facturas.db")
 
 def inicializar_bd():
-    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True) # crea la carpeta 'bbdd' si no existe, sin error si ya existe
 
     conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
