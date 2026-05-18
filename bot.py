@@ -3,7 +3,6 @@
 # 17/03/26 -> investigar si es posible que la base de datos se enlace al usuario o al chat, de manera que cada usuario vea su informacion,
 # y no sea compartida. Seguramente haya que cambiar gran parte del codigo, sobretodo en el archivo de conexion_bbdd.py, ya que deberia hacer un return del chat_id
 # para comprobaciones
-
 from dotenv import load_dotenv
 import os
 import re

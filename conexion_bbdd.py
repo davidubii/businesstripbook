@@ -39,7 +39,7 @@ def inicializar_bd():
             "ALTER TABLE facturas ADD COLUMN chat_id INTEGER"
         )
 
-    # reseteo de emergencia del contador de ids:
+    # reseteo del contador de ids:
     # si la tabla está vacía pero sqlite_sequence aún recuerda un id anterior (por ejemplo, seq=1),
     # el primer insert daría id=2 en vez de id=1. al borrar la entrada, SQLite empieza desde 0+1=1.
     cursor.execute("SELECT COUNT(*) FROM facturas")

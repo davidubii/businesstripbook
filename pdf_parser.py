@@ -31,12 +31,13 @@ def _buscar_importe_total(texto: str) -> str | None:
     """
     busca la línea que contenga 'Total' seguida de un número con decimales.
     re.IGNORECASE = no distingue mayúsculas/minúsculas ('TOTAL', 'Total', 'total').
+    Excluye 'Subtotal' mediante un lookbehind negativo (?<!sub).
     """
-    # [Tt]otal = 'T' o 't' seguido de 'otal'
+    # (?<!sub) = si existiese subtotal: se descartan coincidencias donde 'total' va precedido de 'sub'
     # [^\d]* = cualquier carácter que no sea dígito (espacios, dos puntos...)
     # ([\d.,]+) = captura números con coma o punto decimal
     # \s*€? = espacios opcionales y € opcional
-    patron = r'[Tt]otal[^\d]*([\d.,]+)\s*€?'
+    patron = r'(?<!sub)[Tt]otal[^\d]*([\d.,]+)\s*€?'
     resultado = re.search(patron, texto, re.IGNORECASE)
     return resultado.group(1) if resultado else None
 
